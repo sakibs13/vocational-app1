@@ -25,9 +25,9 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Fix Android Config and Build APK
+      - name: Build Android APK
         run: |
-          echo "=== ১. প্রজেক্ট ফাইল প্রস্তুত করা হচ্ছে ==="
+          echo "=== ১. প্রজেক্ট ফাইল সংগ্রহ ==="
           if [ ! -f "pubspec.yaml" ] && [ ! -f "vocational_physics_app/pubspec.yaml" ]; then
             git clone https://github.com/sakibs13/vocational-app.git temp_repo
             if [ -d "temp_repo/vocational_physics_app" ]; then
@@ -41,37 +41,24 @@ jobs:
           TARGET_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \; | head -n 1)
           cd "$TARGET_DIR"
 
-          echo "=== ২. কোড ফিক্স (Colors.emerald -> Colors.teal) ==="
+          echo "=== ২. কোড ফিক্স ==="
           find lib/ -name "*.dart" -exec sed -i 's/Colors.emerald/Colors.teal/g' {} + || true
 
-          echo "=== ৩. অ্যান্ড্রয়েড প্ল্যাটফর্ম কনফিগারেশন ==="
+          echo "=== ৩. অ্যান্ড্রয়েড প্ল্যাটফর্ম তৈরি ==="
           flutter create . --project-name=vocational_physics_app --platforms=android --org com.vocational.physics
 
-          echo "=== ৪. অ্যান্ড্রয়েড বিল্ড সেটিংস ফিক্স ==="
-          if [ -f "android/app/build.gradle" ]; then
-            sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle || true
-            sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/g' android/app/build.gradle || true
-            sed -i 's/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle || true
-            sed -i '/android {/a \    lintOptions { abortOnError false; checkReleaseBuilds false }' android/app/build.gradle || true
-          fi
+          echo "=== ৪. অ্যান্ড্রয়েড ম্যানিফেস্ট থেকে package এট্রিবিউট অপসারণ ==="
+          find android/ -name "AndroidManifest.xml" -exec sed -i 's/package="[^"]*"//g' {} + || true
 
-          if [ -f "android/gradle.properties" ]; then
-            echo "android.enableR8.fullMode=false" >> android/gradle.properties
-          fi
-
-          echo "=== ৫. প্যাকেজ ইনস্টল ==="
+          echo "=== ৫. ডিপেনডেন্সি ও প্যাকেজ ইনস্টল ==="
           flutter pub get
 
-          echo "=== ৬. Proguard ও PopScope প্লাগইন অটো-ফিক্স ==="
-          find /home/runner/.pub-cache/ -name "build.gradle" -exec sed -i "s/proguard-android.txt/proguard-android-optimize.txt/g" {} + || true
-          find /home/runner/.pub-cache/ -name "youtube_player_builder.dart" -exec sed -i 's/onPopInvokedWithResult: (didPop, _) {/onPopInvoked: (didPop) {/g' {} + || true
-
-          echo "=== ৭. APK বিল্ড করা হচ্ছে ==="
+          echo "=== ৬. রিলিজ APK বিল্ড ==="
           flutter build apk --release --no-tree-shake-icons || flutter build apk --debug --no-tree-shake-icons
 
-          echo "=== ৮. তৈরি হওয়া APK ফাইল সংরক্ষণ ==="
+          echo "=== ৭. আউটপুট সংগ্রহ ==="
           APK_FILE=$(find build/app/outputs/flutter-apk/ -name "*.apk" | head -n 1)
-          echo "Found APK: $APK_FILE"
+          echo "বিল্ড সফল! ফাইল পাওয়া গেছে: $APK_FILE"
           mkdir -p "$GITHUB_WORKSPACE/output_apk"
           cp "$APK_FILE" "$GITHUB_WORKSPACE/output_apk/vocational_physics.apk"
 
