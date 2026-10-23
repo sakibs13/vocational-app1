@@ -1,32 +1,65 @@
 name: Build Android APK
+
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+
 jobs:
   build:
     name: Build Flutter APK
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
       - name: Set up Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Setup Android and Build APK
-        working-directory: vocational_physics_app
+
+      - name: Locate Project and Build APK
         run: |
+          echo "=== ১. প্রজেক্ট ফাইল চেক করা হচ্ছে ==="
+          # যদি এই রিপোজিটরিতে কোড না থাকে, আগের vocational-app থেকে নিয়ে আসবে
+          if [ ! -f "pubspec.yaml" ] && [ ! -f "vocational_physics_app/pubspec.yaml" ]; then
+            echo "Fetching files from vocational-app..."
+            git clone https://github.com/sakibs13/vocational-app.git temp_repo
+            if [ -d "temp_repo/vocational_physics_app" ]; then
+              cp -r temp_repo/vocational_physics_app/* .
+            else
+              cp -r temp_repo/* .
+            fi
+            rm -rf temp_repo
+          fi
+
+          # প্রজেক্ট ডিরেক্টরি নির্ধারণ
+          TARGET_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \; | head -n 1)
+          echo "Target directory: $TARGET_DIR"
+          cd "$TARGET_DIR"
+
+          echo "=== ২. অ্যান্ড্রয়েড প্ল্যাটফর্ম কনফিগারেশন ==="
           flutter create . --platforms=android --org com.vocational.physics
+
+          echo "=== ৩. প্যাকেজ ইনস্টল ==="
           flutter pub get
+
+          echo "=== ৪. রিলিজ APK তৈরি করা হচ্ছে ==="
           flutter build apk --release
+
+          echo "=== ৫. আউটপুট প্রস্তুত ==="
+          mkdir -p "$GITHUB_WORKSPACE/output_apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/output_apk/"
+
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Vocational-Physics-App-Release
-          path: vocational_physics_app/build/app/outputs/flutter-apk/app-release.apk
+          path: output_apk/app-release.apk
