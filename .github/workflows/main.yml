@@ -43,7 +43,7 @@ jobs:
           cd "$TARGET_DIR"
 
           echo "=== ২. অ্যান্ড্রয়েড প্ল্যাটফর্ম কনফিগারেশন ==="
-          flutter create . --platforms=android --org com.vocational.physics
+          flutter create . --project-name=vocational_physics_app --platforms=android --org com.vocational.physics
 
           echo "=== ৩. অ্যান্ড্রয়েড বিল্ড সেটিংস ফিক্স ==="
           if [ -f "android/app/build.gradle" ]; then
