@@ -23,6 +23,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.22.3'
           channel: 'stable'
 
       - name: Fix Android Config and Build APK
@@ -44,7 +45,7 @@ jobs:
           echo "=== ২. অ্যান্ড্রয়েড প্ল্যাটফর্ম কনফিগারেশন ==="
           flutter create . --platforms=android --org com.vocational.physics
 
-          echo "=== ৩. অটো-ফিক্স (minSdkVersion 21 & Lint) ==="
+          echo "=== ৩. অ্যান্ড্রয়েড বিল্ড সেটিংস ফিক্স ==="
           if [ -f "android/app/build.gradle" ]; then
             sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle || true
             sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/g' android/app/build.gradle || true
@@ -52,13 +53,20 @@ jobs:
             sed -i '/android {/a \    lintOptions { abortOnError false; checkReleaseBuilds false }' android/app/build.gradle || true
           fi
 
+          if [ -f "android/gradle.properties" ]; then
+            echo "android.enableR8.fullMode=false" >> android/gradle.properties
+          fi
+
           echo "=== ৪. প্যাকেজ ইনস্টল ==="
           flutter pub get
 
-          echo "=== ৫. APK বিল্ড (Release & Fallback) ==="
+          echo "=== ৫. Proguard প্লাগইন অটো-ফিক্স (Gradle Fix) ==="
+          find /home/runner/.pub-cache/ -name "build.gradle" -exec sed -i "s/proguard-android.txt/proguard-android-optimize.txt/g" {} + || true
+
+          echo "=== ৬. APK বিল্ড করা হচ্ছে ==="
           flutter build apk --release --no-tree-shake-icons || flutter build apk --debug --no-tree-shake-icons
 
-          echo "=== ৬. তৈরি হওয়া APK ফাইল সংরক্ষণ ==="
+          echo "=== ৭. তৈরি হওয়া APK ফাইল সংরক্ষণ ==="
           APK_FILE=$(find build/app/outputs/flutter-apk/ -name "*.apk" | head -n 1)
           echo "Found APK: $APK_FILE"
           mkdir -p "$GITHUB_WORKSPACE/output_apk"
